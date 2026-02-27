@@ -1,0 +1,130 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #6366f1;
+  --primary-dark: #4f46e5;
+  --secondary: #10b981;
+  --accent: #f59e0b;
+  --danger: #ef4444;
+  --bg-dark: #0f172a;
+  --bg-card: #1e293b;
+  --bg-card-hover: #273548;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --border: #334155;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+@layer components {
+  .card {
+    @apply bg-slate-800 border border-slate-700 rounded-xl p-4 transition-all duration-200;
+  }
+  .card:hover { @apply border-slate-600 bg-slate-750; }
+
+  .btn-primary {
+    @apply bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg
+    transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg
+    transition-all duration-200;
+  }
+
+  .btn-success {
+    @apply bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 px-4 rounded-lg transition-all;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-4 rounded-lg transition-all;
+  }
+
+  .input-field {
+    @apply w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-2.5
+    focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all;
+  }
+
+  .badge-live {
+    @apply bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse;
+  }
+
+  .badge-scheduled {
+    @apply bg-slate-600 text-slate-200 text-xs font-medium px-2 py-0.5 rounded-full;
+  }
+
+  .badge-finished {
+    @apply bg-slate-700 text-slate-400 text-xs font-medium px-2 py-0.5 rounded-full;
+  }
+
+  .confidence-bar {
+    @apply h-2 rounded-full bg-slate-700 overflow-hidden;
+  }
+
+  .risk-bajo { @apply text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded text-xs font-medium; }
+  .risk-medio { @apply text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded text-xs font-medium; }
+  .risk-alto { @apply text-red-400 bg-red-400/10 px-2 py-0.5 rounded text-xs font-medium; }
+
+  .stat-card {
+    @apply bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center;
+  }
+}
+
+/* Animations */
+@keyframes slideIn {
+  from { transform: translateX(-20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-in { animation: slideIn 0.3s ease-out; }
+.animate-fade-in { animation: fadeIn 0.3s ease-out; }
+
+/* Live indicator */
+.live-dot {
+  width: 8px; height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+
+/* Chart overrides */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  border-radius: 8px !important;
+}
+
+/* Modal overlay */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 50; padding: 1rem;
+}
+
+.modal-content {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 1rem;
+  width: 100%; max-width: 48rem;
+  max-height: 90vh; overflow-y: auto;
+}

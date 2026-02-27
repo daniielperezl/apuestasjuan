@@ -1,0 +1,42 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Build outputs
+frontend/build/
+backend/dist/
+
+# Logs
+*.log
+logs/
+backend/logs/
+
+# Database
+*.sql.gz
+backups/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SSL certificates (should not be in git)
+*.pem
+*.key
+*.crt
+
+# Test coverage
+coverage/
+
+# Docker volumes
+docker/volumes/
