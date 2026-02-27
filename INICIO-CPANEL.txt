@@ -1,0 +1,48 @@
+============================================================
+SPORTBETS AI PORTAL - INICIO RÁPIDO EN CPANEL
+============================================================
+
+🚀 INSTALACIÓN EN 5 PASOS:
+
+1. PREPARAR EN CPANEL
+   • MySQL Databases → Crear BD "usuario_sportbets"
+   • Crear usuario "usuario_sportdb" con contraseña fuerte
+   • Asignar todos los privilegios
+
+2. DESCARGAR PROYECTO
+   • Por SSH:  git clone <url> ~/sportbets
+   • O por FTP: Subir y extraer sportes.zip
+
+3. INICIAR INSTALADOR WEB
+   • SSH: cd ~/sportbets/installer && npm install && node installer-web.js
+   • Navegador: http://tudominio.com:3001
+
+4. COMPLETAR WIZARD (5 minutos)
+   • Credenciales MySQL
+   • Datos del sistema
+   • API Keys: Claude (https://console.anthropic.com)
+               RapidAPI (https://rapidapi.com - busca "API-Football")
+
+5. CONFIGURAR EN CPANEL
+   • Setup Node.js App → Create Application
+   • Root: /home/usuario/sportbets/backend
+   • File: server.js
+   • Run NPM Install
+
+✅ ACCESO:
+   URL: https://tudominio.com
+   Email: El que ingresaste en el instalador
+   Contraseña: La que creaste
+
+📖 DOCUMENTACIÓN COMPLETA:
+   Ver: docs/CPANEL-INSTALLER.md
+
+⚠️ IMPORTANTE:
+   • El instalador se auto-elimina después de completarse
+   • Guarda tu contraseña del admin en un lugar seguro
+   • Las APIs tienen versiones gratuitas (suficiente para empezar)
+
+============================================================
+¿PREGUNTAS?
+Consulta docs/CPANEL-INSTALLER.md para solucionar problemas
+============================================================
