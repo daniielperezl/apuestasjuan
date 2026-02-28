@@ -12,7 +12,7 @@ const fs = require('fs');
 const { apiLimiter } = require('./middleware/rateLimiter');
 const { logger } = require('./middleware/logger');
 const { setSocketIO } = require('./services/notificationService');
-const { startCronJobs } = require('./services/matchSyncService');
+const { startCronJobs, setSocketIO: setSyncIO } = require('./services/matchSyncService');
 const routes = require('./routes');
 
 // Ensure logs directory exists
@@ -30,6 +30,7 @@ const io = new Server(server, {
 });
 
 setSocketIO(io);
+setSyncIO(io);
 
 // Security middleware
 app.use(helmet({
