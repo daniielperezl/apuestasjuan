@@ -1,48 +1,98 @@
 ============================================================
-SPORTBETS AI PORTAL - INICIO RÁPIDO EN CPANEL
+  SPORTBETS AI PORTAL — INICIO RÁPIDO EN cPANEL
 ============================================================
 
-🚀 INSTALACIÓN EN 5 PASOS:
+REQUISITOS PREVIOS
+──────────────────
+• Node.js 18+ activo en tu cPanel (Setup Node.js App)
+• Una base de datos MySQL y un usuario creado en cPanel
+  (cPanel → MySQL Databases)
+• Acceso SSH o Terminal en cPanel
 
-1. PREPARAR EN CPANEL
-   • MySQL Databases → Crear BD "usuario_sportbets"
-   • Crear usuario "usuario_sportdb" con contraseña fuerte
-   • Asignar todos los privilegios
+────────────────────────────────────────────────────────────
+PASO 1 — SUBIR EL PROYECTO
+────────────────────────────────────────────────────────────
+Opción A (SSH / Git):
+  cd ~
+  git clone <url-del-repo> sportbets
+  cd sportbets
 
-2. DESCARGAR PROYECTO
-   • Por SSH:  git clone <url> ~/sportbets
-   • O por FTP: Subir y extraer sportes.zip
+Opción B (File Manager / FTP):
+  Subir sportbets.zip y descomprimirlo en ~/sportbets
 
-3. INICIAR INSTALADOR WEB
-   • SSH: cd ~/sportbets/installer && npm install && node installer-web.js
-   • Navegador: http://tudominio.com:3001
+────────────────────────────────────────────────────────────
+PASO 2 — INICIAR EL INSTALADOR WEB
+────────────────────────────────────────────────────────────
+Via SSH:
+  cd ~/sportbets/installer
+  npm install          ← instala dependencias del instalador
+  node installer-web.js
 
-4. COMPLETAR WIZARD (5 minutos)
-   • Credenciales MySQL
-   • Datos del sistema
-   • API Keys: Claude (https://console.anthropic.com)
-               RapidAPI (https://rapidapi.com - busca "API-Football")
+Abre en tu navegador:
+  http://tudominio.com:3001
+  (o http://IP-del-servidor:3001 si el dominio aún no apunta)
 
-5. CONFIGURAR EN CPANEL
-   • Setup Node.js App → Create Application
-   • Root: /home/usuario/sportbets/backend
-   • File: server.js
-   • Run NPM Install
+────────────────────────────────────────────────────────────
+PASO 3 — COMPLETAR EL WIZARD (≈5 minutos)
+────────────────────────────────────────────────────────────
+El instalador tiene 5 pasos:
 
-✅ ACCESO:
-   URL: https://tudominio.com
-   Email: El que ingresaste en el instalador
-   Contraseña: La que creaste
+  1. Requisitos — verifica MySQL y Node.js
+  2. Configuración — dominio, email, API keys
+  3. Base de datos — crea tablas automáticamente
+  4. Instalación — crea el admin e instala dependencias
+                   (verás el log en tiempo real)
+  5. Listo — muestra las URLs y se auto-elimina
 
-📖 DOCUMENTACIÓN COMPLETA:
-   Ver: docs/CPANEL-INSTALLER.md
+API Keys que necesitarás:
+  • IA → Claude:   https://console.anthropic.com
+         OpenAI:   https://platform.openai.com
+  • Deportes →    https://rapidapi.com  (busca "API-Sports")
 
-⚠️ IMPORTANTE:
-   • El instalador se auto-elimina después de completarse
-   • Guarda tu contraseña del admin en un lugar seguro
-   • Las APIs tienen versiones gratuitas (suficiente para empezar)
+────────────────────────────────────────────────────────────
+PASO 4 — CONFIGURAR NODE.JS APP EN cPANEL
+────────────────────────────────────────────────────────────
+cPanel → Setup Node.js App → Create Application
 
-============================================================
-¿PREGUNTAS?
-Consulta docs/CPANEL-INSTALLER.md para solucionar problemas
+  Application root:    /home/USUARIO/sportbets
+  Application URL:     tudominio.com
+  Application startup: app.js          ← generado por el instalador
+  Node.js version:     18.x o 20.x
+
+Guarda y haz clic en "Run NPM Install".
+
+────────────────────────────────────────────────────────────
+PASO 5 — ACTIVAR PROXY (OPCIONAL)
+────────────────────────────────────────────────────────────
+Si quieres que Apache reenvíe peticiones a Node.js:
+
+  1. Abre el archivo htaccess.txt generado en ~/sportbets/
+  2. Copia su contenido en ~/public_html/.htaccess
+  3. Asegúrate de tener mod_proxy habilitado
+
+────────────────────────────────────────────────────────────
+✅ ACCESO
+────────────────────────────────────────────────────────────
+  Portal:     https://tudominio.com
+  Admin:      https://tudominio.com/admin
+  Email:      el que ingresaste en el instalador
+  Contraseña: la que creaste en el paso 4
+
+────────────────────────────────────────────────────────────
+⚠  IMPORTANTE
+────────────────────────────────────────────────────────────
+• El archivo .env (en ~/sportbets/) contiene todos los
+  secretos. NO lo compartas ni lo subas a git.
+• El instalador se auto-elimina al finalizar el paso 5.
+• Guarda la contraseña del admin en un lugar seguro.
+• Si Redis no está disponible en tu hosting, no pasa nada:
+  el sistema funciona sin él (REDIS_DISABLED=true en .env).
+
+────────────────────────────────────────────────────────────
+📖 DOCUMENTACIÓN
+────────────────────────────────────────────────────────────
+  docs/CPANEL-INSTALLER.md — guía detallada con imágenes
+  docs/API.md              — referencia de la API REST
+  docs/INSTALL.md          — instalación en servidor propio
+
 ============================================================

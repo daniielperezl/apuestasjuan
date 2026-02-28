@@ -2,372 +2,411 @@
 
 /**
  * ============================================================
- * SPORTBETS AI PORTAL - Web Installer for cPanel
- * Auto-Setup Wizard - Genera todo automáticamente
+ * SPORTBETS AI PORTAL — Web Installer
+ * Asistente de instalación con interfaz gráfica
  * ============================================================
  */
 
 const express = require('express');
-const mysql = require('mysql2/promise');
-const fs = require('fs');
-const path = require('path');
+const mysql   = require('mysql2/promise');
+const bcrypt  = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
-const crypto = require('crypto');
+const fs      = require('fs');
+const path    = require('path');
+const crypto  = require('crypto');
 const { spawn } = require('child_process');
 
-const app = express();
+const app        = express();
+const PROJECT    = path.resolve(__dirname, '..');
+const STATE_FILE = path.join(PROJECT, '.installer-state.json');
+
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
-const PROJECT_DIR = path.join(__dirname, '..');
-const INSTALLER_STATE_FILE = path.join(PROJECT_DIR, '.installer-state.json');
+// ─── Helpers ────────────────────────────────────────────────
 
-// ============================================================
-// Utilidades
-// ============================================================
-
-const generateSecret = (length = 32) => crypto.randomBytes(length).toString('hex');
-const generatePassword = () => crypto.randomBytes(16).toString('base64').replace(/[/+=]/g, '');
+const secret  = (n = 32) => crypto.randomBytes(n).toString('hex');
+const randPwd = ()        => crypto.randomBytes(16).toString('base64url');
 
 const loadState = () => {
   try {
-    if (fs.existsSync(INSTALLER_STATE_FILE)) {
-      return JSON.parse(fs.readFileSync(INSTALLER_STATE_FILE, 'utf8'));
-    }
-  } catch (e) {}
-  return {};
+    return fs.existsSync(STATE_FILE)
+      ? JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'))
+      : {};
+  } catch { return {}; }
 };
 
-const saveState = (data) => {
-  fs.writeFileSync(INSTALLER_STATE_FILE, JSON.stringify(data, null, 2));
-};
+const saveState = (patch) =>
+  fs.writeFileSync(STATE_FILE, JSON.stringify({ ...loadState(), ...patch }, null, 2));
 
-const runCommand = (cmd, args, cwd = PROJECT_DIR) => {
-  return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args, { cwd, stdio: 'pipe' });
-    let stdout = '', stderr = '';
-    proc.stdout?.on('data', (d) => { stdout += d; });
-    proc.stderr?.on('data', (d) => { stderr += d; });
-    proc.on('close', (code) => {
-      if (code === 0) resolve(stdout);
-      else reject(new Error(stderr || `${cmd} exited with code ${code}`));
-    });
-  });
-};
+// ─── Server-Sent Events for install log ─────────────────────
 
-// ============================================================
-// API Endpoints
-// ============================================================
+const sseClients = new Set();
+const logBuffer  = [];           // circular — last 300 lines
+const MAX_LINES  = 300;
 
-// Verificar requisitos del sistema
-app.post('/api/check-requirements', async (req, res) => {
-  try {
-    const { dbHost, dbUser, dbPass, dbName } = req.body;
-
-    // Verificar Node version
-    const nodeVersion = process.version.match(/v(\d+)/)[1];
-    if (parseInt(nodeVersion) < 18) {
-      return res.status(400).json({ error: `Node.js 18+ requerido, tienes v${nodeVersion}` });
-    }
-
-    // Verificar MySQL
-    try {
-      const conn = await mysql.createConnection({
-        host: dbHost || 'localhost',
-        user: dbUser,
-        password: dbPass,
-        waitForConnections: true,
-        connectionLimit: 1,
-        queueLimit: 0
-      });
-      await conn.end();
-    } catch (err) {
-      return res.status(400).json({ error: `MySQL no accessible: ${err.message}` });
-    }
-
-    // Verificar proyecto
-    const backendPath = path.join(PROJECT_DIR, 'backend');
-    const frontendPath = path.join(PROJECT_DIR, 'frontend');
-
-    if (!fs.existsSync(backendPath) || !fs.existsSync(frontendPath)) {
-      return res.status(400).json({ error: 'Estructura de proyecto inválida' });
-    }
-
-    res.json({
-      success: true,
-      message: 'Todos los requisitos cumplidos',
-      nodeVersion: process.version
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+const pushLog = (line) => {
+  const entry = String(line).replace(/\r/g, '');
+  logBuffer.push(entry);
+  if (logBuffer.length > MAX_LINES) logBuffer.shift();
+  for (const res of sseClients) {
+    try { res.write(`data: ${JSON.stringify(entry)}\n\n`); }
+    catch { sseClients.delete(res); }
   }
+};
+
+app.get('/api/install-log', (req, res) => {
+  res.setHeader('Content-Type',  'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection',    'keep-alive');
+  res.flushHeaders();
+
+  // Replay buffered output for late-joining clients
+  for (const line of logBuffer) {
+    res.write(`data: ${JSON.stringify(line)}\n\n`);
+  }
+
+  sseClients.add(res);
+  req.on('close', () => sseClients.delete(res));
 });
 
-// Crear base de datos y tablas
-app.post('/api/setup-database', async (req, res) => {
-  try {
-    const { dbHost, dbUser, dbPass, dbName } = req.body;
+// ─── Step 1 — Verificar requisitos ──────────────────────────
 
+app.post('/api/check-requirements', async (req, res) => {
+  const { dbHost = 'localhost', dbUser, dbPass, dbName } = req.body;
+
+  // Node version
+  const major = parseInt(process.version.replace('v', ''));
+  if (major < 18) {
+    return res.status(400).json({ error: `Node.js 18+ requerido. Tienes ${process.version}` });
+  }
+
+  // MySQL connectivity (without selecting DB — it may not exist yet)
+  try {
     const conn = await mysql.createConnection({
       host: dbHost || 'localhost',
       user: dbUser,
-      password: dbPass
+      password: dbPass,
+      connectTimeout: 8000,
     });
-
-    // Crear BD
-    await conn.execute(`CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
-    await conn.changeUser({ database: dbName });
-
-    // Cargar schema
-    const schemaPath = path.join(PROJECT_DIR, 'backend/database/schema-mysql.sql');
-    const schema = fs.readFileSync(schemaPath, 'utf8');
-
-    // Ejecutar línea por línea (MySQL puede tener problemas con múltiples statements)
-    const statements = schema.split(';').filter(s => s.trim());
-    for (const stmt of statements) {
-      if (stmt.trim()) {
-        await conn.execute(stmt + ';');
-      }
-    }
-
-    // Cargar datos seed
-    const seedPath = path.join(PROJECT_DIR, 'backend/database/seed-mysql.sql');
-    if (fs.existsSync(seedPath)) {
-      const seed = fs.readFileSync(seedPath, 'utf8');
-      const seedStmts = seed.split(';').filter(s => s.trim());
-      for (const stmt of seedStmts) {
-        if (stmt.trim()) {
-          try {
-            await conn.execute(stmt + ';');
-          } catch (e) {
-            // Ignorar errores en seed (duplicados, etc)
-          }
-        }
-      }
-    }
-
+    await conn.ping();
     await conn.end();
-
-    res.json({
-      success: true,
-      message: 'Base de datos creada y configurada'
-    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(400).json({ error: `MySQL no accesible: ${err.message}` });
   }
+
+  // Project structure
+  if (!fs.existsSync(path.join(PROJECT, 'backend', 'server.js'))) {
+    return res.status(400).json({
+      error: 'Estructura de proyecto inválida — no se encontró backend/server.js',
+    });
+  }
+
+  saveState({ step1: true, db: { dbHost, dbUser, dbPass, dbName } });
+  res.json({ success: true, nodeVersion: process.version, message: 'Todos los requisitos cumplidos' });
 });
 
-// Generar archivo .env
-app.post('/api/generate-env', async (req, res) => {
-  try {
-    const {
-      domain,
-      adminEmail,
-      iaProvider,
-      iaApiKey,
-      sportsApiKey,
-      smtpHost,
-      smtpUser,
-      smtpPass,
-      dbHost,
-      dbUser,
-      dbPass,
-      dbName
-    } = req.body;
+// ─── Step 2 — Generar .env + archivos de configuración ──────
 
-    // Generar secretos
-    const jwtSecret = generateSecret(64);
-    const encryptionKey = generateSecret(32);
-    const sessionSecret = generateSecret(64);
+app.post('/api/generate-env', (req, res) => {
+  const {
+    domain      = '',
+    adminEmail  = '',
+    iaProvider  = 'claude',
+    iaApiKey    = '',
+    sportsApiKey = '',
+    smtpHost    = 'smtp.gmail.com',
+    smtpUser    = '',
+    smtpPass    = '',
+  } = req.body;
 
-    const envContent = `# ============================================================
-# SPORTBETS AI PORTAL - Configuración Generada
-# Instalación cPanel - ${new Date().toISOString()}
-# ============================================================
+  if (!domain.trim() || !adminEmail.trim()) {
+    return res.status(400).json({ error: 'El dominio y el email son obligatorios' });
+  }
 
-# === SERVIDOR ===
+  const state = loadState();
+  const { dbHost = 'localhost', dbUser = '', dbPass = '', dbName = '' } = state.db || {};
+
+  const jwtSecret       = secret(64);
+  const encryptionKey   = secret(32);
+  const sessionSecret   = secret(64);
+  const redisPass       = randPwd();
+
+  const iaModel =
+    iaProvider === 'claude'  ? 'claude-sonnet-4-6' :
+    iaProvider === 'openai'  ? 'gpt-4o'            :
+    /* gemini */               'gemini-1.5-pro';
+
+  // ── .env ──
+  const envContent = `# SportBets AI Portal — generado el ${new Date().toISOString()}
+# NO compartas este archivo
+
+# ─── Servidor ─────────────────────────────────────────────
 NODE_ENV=production
 PORT=3000
 DOMAIN=${domain}
 FRONTEND_URL=https://${domain}
 CORS_ORIGINS=https://${domain}
 
-# === BASE DE DATOS (MySQL) ===
-DB_HOST=${dbHost || 'localhost'}
+# ─── Base de datos (MySQL) ─────────────────────────────────
+DB_HOST=${dbHost}
 DB_PORT=3306
 DB_USER=${dbUser}
 DB_PASSWORD=${dbPass}
 DB_NAME=${dbName}
 DB_SSL=false
 
-# === REDIS (opcional en cPanel) ===
+# ─── Redis (deshabilitar si no disponible en tu hosting) ───
 REDIS_HOST=localhost
 REDIS_PORT=6379
-REDIS_PASSWORD=${generatePassword()}
+REDIS_PASSWORD=${redisPass}
+REDIS_DISABLED=true
 
-# === AUTENTICACIÓN ===
+# ─── Autenticación ─────────────────────────────────────────
 JWT_SECRET=${jwtSecret}
 JWT_EXPIRES=15m
 ENCRYPTION_KEY=${encryptionKey}
 SESSION_SECRET=${sessionSecret}
 
-# === INTELIGENCIA ARTIFICIAL ===
+# ─── Inteligencia Artificial ───────────────────────────────
 IA_PROVIDER=${iaProvider}
 IA_API_KEY=${iaApiKey}
-IA_MODEL=${iaProvider === 'claude' ? 'claude-sonnet-4-6' : iaProvider === 'openai' ? 'gpt-4o' : 'gemini-1.5-pro'}
+IA_MODEL=${iaModel}
 
-# === API DEPORTES (RapidAPI) ===
+# ─── API Deportes (RapidAPI / API-Sports) ──────────────────
 SPORTS_API_KEY=${sportsApiKey}
-SPORTS_API_URL=https://v3.football.api-sports.io
 
-# === EMAIL ===
+# ─── Email (SMTP) ──────────────────────────────────────────
 SMTP_HOST=${smtpHost}
 SMTP_PORT=587
 SMTP_USER=${smtpUser}
 SMTP_PASSWORD=${smtpPass}
 
-# === CONFIGURACIÓN REGIONAL ===
+# ─── Regional ──────────────────────────────────────────────
 TIMEZONE=America/Bogota
 
-# === CRON JOBS ===
+# ─── Cron / Logs ───────────────────────────────────────────
 ENABLE_CRON=true
-
-# === LOGGING ===
 LOG_LEVEL=info
-
-# === ADMIN ===
 ADMIN_EMAIL=${adminEmail}
 `;
 
-    const envPath = path.join(PROJECT_DIR, '.env');
-    fs.writeFileSync(envPath, envContent);
+  fs.writeFileSync(path.join(PROJECT, '.env'), envContent);
 
-    // Guardar estado
-    const state = loadState();
-    state.env = { domain, adminEmail, iaProvider };
-    saveState(state);
+  // ── app.js — entry point para cPanel Node.js App ──
+  const appJs = `// SportBets AI Portal — cPanel entry point
+require('dotenv').config({ path: __dirname + '/.env' });
+require('./backend/server.js');
+`;
+  fs.writeFileSync(path.join(PROJECT, 'app.js'), appJs);
 
-    res.json({
-      success: true,
-      message: '.env generado correctamente',
-      keys: { jwtSecret, encryptionKey, sessionSecret }
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  // ── htaccess.txt — guía para cPanel proxy ──
+  const htaccess = `# Coloca este contenido en tu public_html/.htaccess
+# para que Apache reenvíe las peticiones a la app Node.js
+
+Options -MultiViews
+RewriteEngine On
+
+# No redirigir archivos/carpetas que existen
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Redirigir todo al servidor Node.js en puerto 3000
+RewriteRule ^(.*)$ http://localhost:3000/$1 [P,L]
+
+# Seguridad
+Header always set X-Content-Type-Options nosniff
+Header always set X-Frame-Options DENY
+Header always set X-XSS-Protection "1; mode=block"
+`;
+  fs.writeFileSync(path.join(PROJECT, 'htaccess.txt'), htaccess);
+
+  saveState({ step2: true, config: { domain, adminEmail, iaProvider } });
+  res.json({ success: true, message: '.env, app.js y htaccess.txt generados' });
 });
 
-// Instalar dependencias Node.js
-app.post('/api/install-deps', async (req, res) => {
+// ─── Step 3 — Crear base de datos y tablas ──────────────────
+
+app.post('/api/setup-database', async (req, res) => {
+  const state = loadState();
+  const {
+    dbHost = 'localhost',
+    dbUser, dbPass, dbName
+  } = { ...state.db, ...req.body };
+
   try {
-    res.json({ success: true, message: 'Instalando dependencias...' });
-
-    setImmediate(async () => {
-      try {
-        // Backend
-        await runCommand('npm', ['install', '--production'], path.join(PROJECT_DIR, 'backend'));
-
-        // Frontend
-        await runCommand('npm', ['install'], path.join(PROJECT_DIR, 'frontend'));
-        await runCommand('npm', ['run', 'build'], path.join(PROJECT_DIR, 'frontend'));
-
-        const state = loadState();
-        state.depsInstalled = true;
-        saveState(state);
-      } catch (err) {
-        console.error('Error instalando deps:', err);
-      }
+    // multipleStatements lets us run the whole schema in one call
+    const conn = await mysql.createConnection({
+      host: dbHost,
+      user: dbUser,
+      password: dbPass,
+      multipleStatements: true,
+      connectTimeout: 10000,
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
-// Crear usuario admin
-app.post('/api/create-admin', async (req, res) => {
-  try {
-    const { adminEmail, adminPassword } = req.body;
+    await conn.execute(
+      `CREATE DATABASE IF NOT EXISTS \`${dbName}\`
+       CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+    );
+    await conn.changeUser({ database: dbName });
 
-    if (adminPassword.length < 12) {
-      return res.status(400).json({ error: 'Contraseña mínimo 12 caracteres' });
+    // Schema
+    const schemaFile = path.join(PROJECT, 'backend/database/schema-mysql.sql');
+    const schema = fs.readFileSync(schemaFile, 'utf8');
+    await conn.query(schema);
+
+    // Seed data (ignore duplicate errors)
+    const seedFile = path.join(PROJECT, 'backend/database/seed-mysql.sql');
+    if (fs.existsSync(seedFile)) {
+      try { await conn.query(fs.readFileSync(seedFile, 'utf8')); } catch {}
     }
 
-    // Usar bcryptjs para hashear
-    const bcrypt = require('bcryptjs');
+    await conn.end();
+    saveState({ step3: true });
+    res.json({ success: true, message: 'Base de datos creada y tablas inicializadas' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Step 4a — Crear usuario administrador ──────────────────
+
+app.post('/api/create-admin', async (req, res) => {
+  const { adminEmail, adminPassword } = req.body;
+
+  if (!adminPassword || adminPassword.length < 12) {
+    return res.status(400).json({ error: 'La contraseña debe tener mínimo 12 caracteres' });
+  }
+
+  const state  = loadState();
+  const { dbHost = 'localhost', dbUser, dbPass, dbName } = state.db || {};
+  const email  = adminEmail || state.config?.adminEmail;
+
+  try {
     const hash = await bcrypt.hash(adminPassword, 12);
+    const conn = await mysql.createConnection({
+      host: dbHost, user: dbUser, password: dbPass, database: dbName,
+    });
 
-    const { query } = require('../backend/config/database');
-    require('dotenv').config({ path: path.join(PROJECT_DIR, '.env') });
-
-    await query(
+    await conn.execute(
       `INSERT INTO users (id, email, password_hash, nombre, rol, estado, verificado_email)
        VALUES (?, ?, ?, 'Administrador', 'SUPERADMIN', 'ACTIVO', TRUE)
-       ON DUPLICATE KEY UPDATE rol='SUPERADMIN'`,
-      [uuidv4(), adminEmail, hash]
+       ON DUPLICATE KEY UPDATE
+         rol           = 'SUPERADMIN',
+         password_hash = VALUES(password_hash)`,
+      [uuidv4(), email, hash]
     );
 
-    const state = loadState();
-    state.adminCreated = true;
-    saveState(state);
+    // Config flags in sistema table
+    await conn.execute(
+      `INSERT INTO config_sistema (clave, valor, tipo)
+       VALUES ('installed_at', ?, 'string'),
+              ('version',      '1.0.0', 'string')
+       ON DUPLICATE KEY UPDATE valor = VALUES(valor)`,
+      [new Date().toISOString()]
+    ).catch(() => {}); // table might not have config_sistema yet — safe to skip
 
-    res.json({
-      success: true,
-      message: 'Usuario admin creado correctamente',
-      email: adminEmail
-    });
+    await conn.end();
+    saveState({ adminCreated: true });
+    res.json({ success: true, email });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Obtener estado de instalación
-app.get('/api/installation-status', (req, res) => {
-  const state = loadState();
-  res.json(state);
+// ─── Step 4b — Instalar dependencias (streamed via SSE) ─────
+
+app.post('/api/install-deps', (req, res) => {
+  // Respond immediately — progress arrives via /api/install-log
+  res.json({ success: true, message: 'Instalación iniciada' });
+
+  const steps = [
+    {
+      label: 'Dependencias del backend',
+      cwd:   path.join(PROJECT, 'backend'),
+      cmd:   'npm',
+      args:  ['install', '--production', '--no-fund', '--no-audit'],
+    },
+    {
+      label: 'Dependencias del frontend',
+      cwd:   path.join(PROJECT, 'frontend'),
+      cmd:   'npm',
+      args:  ['install', '--no-fund', '--no-audit'],
+    },
+    {
+      label: 'Compilar frontend (build)',
+      cwd:   path.join(PROJECT, 'frontend'),
+      cmd:   'npm',
+      args:  ['run', 'build'],
+    },
+  ];
+
+  setImmediate(async () => {
+    let allOk = true;
+    for (const step of steps) {
+      pushLog(`\n▶ ${step.label}…`);
+      const ok = await new Promise((resolve) => {
+        const proc = spawn(step.cmd, step.args, {
+          cwd: step.cwd,
+          env: { ...process.env, CI: 'false', FORCE_COLOR: '0' },
+        });
+        proc.stdout.on('data', (d) => d.toString().split('\n').forEach(pushLog));
+        proc.stderr.on('data', (d) => d.toString().split('\n').forEach(pushLog));
+        proc.on('close', (code) => {
+          if (code === 0) { pushLog(`✓ ${step.label} completado`); resolve(true); }
+          else            { pushLog(`✗ ${step.label} falló (código ${code})`); resolve(false); }
+        });
+      });
+      if (!ok) { allOk = false; break; }
+    }
+
+    if (allOk) {
+      saveState({ depsInstalled: true });
+      pushLog('\n__DONE__');
+    } else {
+      pushLog('\n__ERROR__');
+    }
+  });
 });
 
-// Finalizar instalación (elimina el instalador)
-app.post('/api/finalize-installation', async (req, res) => {
-  try {
-    const installerPath = __filename;
-    const publicPath = path.join(__dirname, 'public');
+// ─── Estado de instalación ───────────────────────────────────
 
-    // Dar 2 segundos para cerrar conexión
-    setTimeout(() => {
+app.get('/api/installation-status', (req, res) => res.json(loadState()));
+
+// ─── Finalizar (auto-eliminación del instalador) ─────────────
+
+app.post('/api/finalize-installation', (req, res) => {
+  res.json({ success: true, message: 'Instalador eliminado' });
+
+  setTimeout(() => {
+    const targets = [
+      __filename,                            // installer-web.js
+      path.join(__dirname, 'public'),        // installer UI
+      path.join(__dirname, 'package.json'),  // installer package.json
+      path.join(__dirname, 'node_modules'),  // installer deps
+      STATE_FILE,                            // state file
+    ];
+    for (const t of targets) {
       try {
-        // Eliminar instalador
-        if (fs.existsSync(installerPath)) {
-          fs.unlinkSync(installerPath);
-        }
-        // Eliminar carpeta public del installer
-        if (fs.existsSync(publicPath)) {
-          fs.rmSync(publicPath, { recursive: true });
-        }
-        // Eliminar archivos de estado
-        if (fs.existsSync(INSTALLER_STATE_FILE)) {
-          fs.unlinkSync(INSTALLER_STATE_FILE);
-        }
+        if (!fs.existsSync(t)) continue;
+        const stat = fs.statSync(t);
+        if (stat.isDirectory()) fs.rmSync(t, { recursive: true, force: true });
+        else fs.unlinkSync(t);
       } catch (e) {
-        console.error('Error eliminando instalador:', e);
+        console.error(`Error eliminando ${t}:`, e.message);
       }
-    }, 2000);
-
-    res.json({
-      success: true,
-      message: 'Instalación completada. El instalador se ha eliminado.'
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    }
+    console.log('Instalador eliminado correctamente.');
+  }, 3000);
 });
 
-// ============================================================
-// Servidor
-// ============================================================
+// ─── Iniciar servidor ────────────────────────────────────────
 
 const PORT = process.env.INSTALLER_PORT || 3001;
-
-app.listen(PORT, () => {
-  console.log(`\n🚀 SportBets Installer disponible en http://localhost:${PORT}`);
-  console.log(`📍 En tu cPanel accede a tu dominio en la ruta: /installer\n`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('\n╔═══════════════════════════════════════════╗');
+  console.log(`║  SportBets AI — Instalador Web             ║`);
+  console.log(`║  http://localhost:${PORT}                    ║`);
+  console.log('╚═══════════════════════════════════════════╝\n');
+  console.log('Abre esa URL en tu navegador para continuar.\n');
 });

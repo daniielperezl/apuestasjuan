@@ -3,678 +3,862 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SportBets AI - Instalador Web</title>
+  <title>SportBets AI — Instalador</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --border:   #30363d;
+      --indigo:   #6366f1;
+      --green:    #10b981;
+      --red:      #ef4444;
+      --amber:    #f59e0b;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+      --input-bg: #0d1117;
+    }
+
     body {
-      font-family: 'Inter', -apple-system, sans-serif;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
       min-height: 100vh;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
-      color: #f8fafc;
+      padding: 40px 16px 60px;
+      color: var(--text);
+      font-size: 14px;
     }
 
-    .container {
+    .shell {
       width: 100%;
-      max-width: 600px;
-      padding: 24px;
+      max-width: 560px;
     }
 
-    .card {
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 12px;
-      padding: 40px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-    }
-
+    /* ── Header ── */
     .header {
       text-align: center;
-      margin-bottom: 40px;
+      margin-bottom: 28px;
     }
-
-    .logo {
-      width: 60px;
-      height: 60px;
-      background: linear-gradient(135deg, #6366f1 0%, #10b981 100%);
-      border-radius: 12px;
-      display: flex;
+    .logo-ring {
+      width: 56px; height: 56px;
+      background: linear-gradient(135deg, var(--indigo), var(--green));
+      border-radius: 14px;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto 16px;
-      font-size: 28px;
-      font-weight: bold;
+      font-size: 26px;
+      margin-bottom: 12px;
     }
+    .header h1 { font-size: 26px; font-weight: 700; }
+    .header h1 span { color: var(--indigo); }
+    .header p  { color: var(--muted); font-size: 13px; margin-top: 4px; }
 
-    h1 {
-      font-size: 28px;
-      margin-bottom: 8px;
-    }
-
-    .subtitle {
-      color: #94a3b8;
-      font-size: 14px;
-    }
-
-    .step-indicator {
+    /* ── Progress bar ── */
+    .progress-bar {
       display: flex;
-      justify-content: space-between;
-      margin-bottom: 32px;
+      align-items: center;
+      margin-bottom: 28px;
+      gap: 0;
+    }
+    .pb-step {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       position: relative;
     }
-
-    .step-indicator::before {
+    .pb-step:not(:last-child)::after {
       content: '';
       position: absolute;
-      top: 20px;
-      left: 0;
-      right: 0;
+      top: 18px;
+      left: 50%;
+      width: 100%;
       height: 2px;
-      background: #334155;
-      z-index: 1;
+      background: var(--border);
+      z-index: 0;
+      transition: background .3s;
     }
-
-    .step {
-      width: 40px;
-      height: 40px;
-      background: #334155;
+    .pb-step.done:not(:last-child)::after,
+    .pb-step.active:not(:last-child)::after {
+      background: var(--indigo);
+    }
+    .pb-num {
+      width: 36px; height: 36px;
       border-radius: 50%;
+      background: var(--border);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: bold;
+      font-weight: 700;
+      font-size: 13px;
       position: relative;
-      z-index: 2;
+      z-index: 1;
+      transition: background .3s, color .3s;
+    }
+    .pb-step.active .pb-num { background: var(--indigo); color: #fff; }
+    .pb-step.done   .pb-num { background: var(--green);  color: #fff; }
+    .pb-step.done   .pb-num::before { content: '✓'; font-size: 14px; }
+    .pb-step.done   .pb-num span { display: none; }
+    .pb-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 5px;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .pb-step.active .pb-label { color: var(--indigo); font-weight: 600; }
+    .pb-step.done   .pb-label { color: var(--green); }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
     }
 
-    .step.active {
-      background: #6366f1;
-      color: white;
+    .step-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 6px;
     }
-
-    .step.completed {
-      background: #10b981;
-      color: white;
-    }
-
-    .form-group {
+    .step-desc {
+      color: var(--muted);
+      font-size: 13px;
       margin-bottom: 24px;
+      line-height: 1.5;
     }
 
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 500;
-      font-size: 14px;
-    }
+    /* ── Form ── */
+    .field { margin-bottom: 18px; }
+    label  { display: block; font-weight: 500; margin-bottom: 6px; font-size: 13px; }
+    .hint  { color: var(--muted); font-size: 11px; margin-top: 4px; }
+    .hint a { color: var(--indigo); text-decoration: none; }
 
     input, select {
       width: 100%;
-      padding: 10px 12px;
-      background: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 6px;
-      color: #f8fafc;
+      padding: 9px 12px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
       font-size: 14px;
       font-family: inherit;
+      transition: border-color .15s, box-shadow .15s;
     }
-
     input:focus, select:focus {
       outline: none;
-      border-color: #6366f1;
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+      border-color: var(--indigo);
+      box-shadow: 0 0 0 3px rgba(99,102,241,.15);
     }
+    input::placeholder { color: #444c56; }
 
-    input::placeholder {
-      color: #64748b;
-    }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
-    .help-text {
-      color: #94a3b8;
-      font-size: 12px;
-      margin-top: 4px;
+    /* ── Alerts ── */
+    .alert {
+      padding: 11px 14px;
+      border-radius: 7px;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 16px;
     }
+    .alert-error   { background: #1f0707; color: #fca5a5; border: 1px solid #7f1d1d; }
+    .alert-success { background: #052e16; color: #a7f3d0; border: 1px solid #14532d; }
+    .alert-info    { background: #0c1a2e; color: #93c5fd; border: 1px solid #1e3a5f; }
 
-    .buttons {
-      display: flex;
-      gap: 12px;
-      margin-top: 32px;
-    }
+    /* ── Buttons ── */
+    .btn-row { display: flex; gap: 10px; margin-top: 24px; }
+    .btn-row .spacer { flex: 1; }
 
     button {
-      flex: 1;
-      padding: 12px;
+      padding: 10px 20px;
       border: none;
-      border-radius: 6px;
+      border-radius: 7px;
+      font-size: 14px;
       font-weight: 600;
       cursor: pointer;
-      font-size: 14px;
-      transition: all 0.2s;
+      transition: opacity .15s, background .15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
     }
+    button:disabled { opacity: .45; cursor: not-allowed; }
 
     .btn-primary {
-      background: #6366f1;
-      color: white;
+      background: var(--indigo);
+      color: #fff;
+      flex: 1;
+    }
+    .btn-primary:hover:not(:disabled) { background: #4f46e5; }
+    .btn-primary.green                { background: var(--green); }
+    .btn-primary.green:hover:not(:disabled) { background: #059669; }
+
+    .btn-ghost {
+      background: var(--border);
+      color: var(--muted);
+    }
+    .btn-ghost:hover:not(:disabled) { background: #3d444d; }
+
+    /* ── Spinner ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin {
+      width: 15px; height: 15px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .5s linear infinite;
+      flex-shrink: 0;
     }
 
-    .btn-primary:hover:not(:disabled) {
-      background: #4f46e5;
+    /* ── Password strength ── */
+    .strength-wrap { margin-top: 8px; }
+    .strength-bar-outer {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
     }
-
-    .btn-secondary {
-      background: #334155;
-      color: #e2e8f0;
+    .strength-bar-inner {
+      height: 100%;
+      width: 0;
+      border-radius: 2px;
+      transition: width .3s, background .3s;
     }
+    .strength-label { font-size: 11px; color: var(--muted); margin-top: 4px; }
 
-    .btn-secondary:hover:not(:disabled) {
-      background: #475569;
-    }
-
-    button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .alert {
+    /* ── Log console ── */
+    .log-console {
+      background: #010409;
+      border: 1px solid var(--border);
+      border-radius: 7px;
       padding: 12px;
-      border-radius: 6px;
-      margin-bottom: 16px;
-      font-size: 14px;
+      height: 260px;
+      overflow-y: auto;
+      font-family: 'SFMono-Regular', Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #a5d6a7;
+      white-space: pre-wrap;
+      word-break: break-all;
     }
+    .log-console .log-err  { color: #ef9a9a; }
+    .log-console .log-info { color: #81d4fa; }
+    .log-console .log-ok   { color: #a5d6a7; }
 
-    .alert-error {
-      background: #7f1d1d;
-      color: #fca5a5;
-      border: 1px solid #dc2626;
-    }
-
-    .alert-success {
-      background: #064e3b;
-      color: #a7f3d0;
-      border: 1px solid #10b981;
-    }
-
-    .alert-info {
-      background: #0c2d6b;
-      color: #bfdbfe;
-      border: 1px solid #3b82f6;
-    }
-
-    .loading {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid #334155;
-      border-top-color: #6366f1;
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-      margin-right: 8px;
-      vertical-align: middle;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
+    /* ── Success screen ── */
+    .success-wrap { text-align: center; }
     .success-icon {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      background: #10b981;
-      border-radius: 50%;
+      font-size: 64px;
+      margin-bottom: 12px;
+      animation: pop .4s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
+    .success-wrap h2 { font-size: 22px; margin-bottom: 6px; }
+    .success-wrap p  { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+
+    .url-box {
+      background: #052e16;
+      border: 1px solid #14532d;
+      border-radius: 8px;
+      padding: 16px 18px;
+      text-align: left;
+      margin-bottom: 20px;
+    }
+    .url-box .url-label { color: var(--green); font-weight: 700; margin-bottom: 10px; font-size: 13px; }
+    .url-row {
       display: flex;
       align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: bold;
-      margin-right: 8px;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .url-row code {
+      flex: 1;
+      font-family: monospace;
+      font-size: 13px;
+      color: #a7f3d0;
+      word-break: break-all;
+    }
+    .copy-btn {
+      background: #14532d;
+      border: none;
+      border-radius: 5px;
+      padding: 4px 10px;
+      color: var(--green);
+      font-size: 12px;
+      cursor: pointer;
+      flex-shrink: 0;
+      font-weight: 600;
+    }
+    .copy-btn:hover { background: #166534; }
+
+    /* ── Separator ── */
+    .sep {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 20px 0;
     }
 
-    .step-hidden {
-      display: none;
+    /* ── Transitions ── */
+    .pane { display: none; }
+    .pane.active { display: block; animation: fadeUp .25s ease; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
-    .step-visible {
-      animation: fadeIn 0.3s ease-in;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    .two-col {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-
-    @media (max-width: 600px) {
-      .card { padding: 24px; }
-      h1 { font-size: 24px; }
-      .two-col { grid-template-columns: 1fr; }
-      .step-indicator { display: none; }
+    @media (max-width: 540px) {
+      .card        { padding: 22px 18px; }
+      .grid2       { grid-template-columns: 1fr; }
+      .pb-label    { display: none; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="card">
-      <div class="header">
-        <div class="logo">🎯</div>
-        <h1>SportBets<span style="color: #6366f1;">AI</span></h1>
-        <p class="subtitle">Portal de Análisis Deportivo con IA</p>
-      </div>
+<div class="shell">
 
-      <div class="step-indicator">
-        <div class="step active" id="step-1">1</div>
-        <div class="step" id="step-2">2</div>
-        <div class="step" id="step-3">3</div>
-        <div class="step" id="step-4">4</div>
-        <div class="step" id="step-5">5</div>
-      </div>
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-ring">🎯</div>
+    <h1>SportBets<span>AI</span></h1>
+    <p>Portal de Análisis Deportivo · Asistente de Instalación</p>
+  </div>
 
-      <!-- Paso 1: Verificación -->
-      <div class="step-visible" id="form-1">
-        <h2 style="margin-bottom: 16px; font-size: 18px;">Verificar Requisitos</h2>
-        <p style="color: #94a3b8; margin-bottom: 24px; font-size: 14px;">
-          Verificaremos que tu hosting tenga todo lo necesario
-        </p>
-
-        <div class="form-group">
-          <label>Host de Base de Datos</label>
-          <input type="text" id="dbHost" placeholder="localhost" value="localhost">
-          <div class="help-text">Normalmente es 'localhost' en cPanel</div>
-        </div>
-
-        <div class="form-group">
-          <label>Usuario MySQL</label>
-          <input type="text" id="dbUser" placeholder="usuario_db">
-          <div class="help-text">El usuario que creaste en cPanel</div>
-        </div>
-
-        <div class="form-group">
-          <label>Contraseña MySQL</label>
-          <input type="password" id="dbPass" placeholder="••••••••">
-        </div>
-
-        <div class="form-group">
-          <label>Nombre de Base de Datos</label>
-          <input type="text" id="dbName" placeholder="usuario_sportbets">
-        </div>
-
-        <div class="buttons">
-          <button class="btn-primary" onclick="checkRequirements()">
-            <span id="check-btn">Verificar Requisitos</span>
-          </button>
-        </div>
-
-        <div id="step1-alert" style="display: none; margin-top: 16px;"></div>
-      </div>
-
-      <!-- Paso 2: Configuración -->
-      <div class="step-hidden" id="form-2">
-        <h2 style="margin-bottom: 16px; font-size: 18px;">Configuración del Sistema</h2>
-
-        <div class="form-group">
-          <label>Dominio</label>
-          <input type="text" id="domain" placeholder="tudominio.com">
-          <div class="help-text">Sin https://, solo el dominio</div>
-        </div>
-
-        <div class="form-group">
-          <label>Email del Administrador</label>
-          <input type="email" id="adminEmail" placeholder="admin@tudominio.com">
-        </div>
-
-        <div class="form-group">
-          <label>Proveedor de IA</label>
-          <select id="iaProvider" onchange="updateIAFields()">
-            <option value="claude">Claude (Anthropic) - Recomendado</option>
-            <option value="openai">OpenAI (GPT-4)</option>
-            <option value="gemini">Google Gemini</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>API Key del Proveedor IA</label>
-          <input type="password" id="iaApiKey" placeholder="sk-...">
-          <div class="help-text" id="ia-help">
-            Obtén tu API key en <a href="https://console.anthropic.com" target="_blank" style="color: #6366f1;">console.anthropic.com</a>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>API Key RapidAPI (Deportes)</label>
-          <input type="password" id="sportsApiKey" placeholder="...">
-          <div class="help-text">
-            Obtén en <a href="https://rapidapi.com" target="_blank" style="color: #6366f1;">rapidapi.com</a> (busca API-Football)
-          </div>
-        </div>
-
-        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #334155;">
-          <h3 style="font-size: 16px; margin-bottom: 16px;">Email (SMTP)</h3>
-
-          <div class="form-group">
-            <label>SMTP Host</label>
-            <input type="text" id="smtpHost" placeholder="smtp.gmail.com" value="smtp.gmail.com">
-          </div>
-
-          <div class="form-group">
-            <label>Usuario SMTP</label>
-            <input type="email" id="smtpUser" placeholder="tu@gmail.com">
-          </div>
-
-          <div class="form-group">
-            <label>Contraseña SMTP</label>
-            <input type="password" id="smtpPass" placeholder="••••••••">
-            <div class="help-text">Si es Gmail, usa contraseña de aplicación</div>
-          </div>
-        </div>
-
-        <div class="buttons">
-          <button class="btn-secondary" onclick="goToStep(1)">Atrás</button>
-          <button class="btn-primary" onclick="generateEnv()">Generar Configuración</button>
-        </div>
-
-        <div id="step2-alert" style="display: none; margin-top: 16px;"></div>
-      </div>
-
-      <!-- Paso 3: Setup Base de Datos -->
-      <div class="step-hidden" id="form-3">
-        <h2 style="margin-bottom: 16px; font-size: 18px;">Crear Base de Datos</h2>
-        <p style="color: #94a3b8; margin-bottom: 24px; font-size: 14px;" id="step3-msg">
-          Se creará la base de datos y las tablas automáticamente...
-        </p>
-
-        <button class="btn-primary" id="setupdb-btn" onclick="setupDatabase()">
-          <span>Crear Base de Datos</span>
-        </button>
-
-        <div id="step3-alert" style="display: none; margin-top: 16px;"></div>
-      </div>
-
-      <!-- Paso 4: Admin y Dependencias -->
-      <div class="step-hidden" id="form-4">
-        <h2 style="margin-bottom: 16px; font-size: 18px;">Crear Usuario Admin</h2>
-
-        <div class="form-group">
-          <label>Contraseña del Admin</label>
-          <input type="password" id="adminPassword" placeholder="MínElves12CarácteresConSímbolo!">
-          <div class="help-text">Mínimo 12 caracteres, mayúsculas, números y símbolos</div>
-        </div>
-
-        <div id="password-strength" style="margin-top: 8px; display: none;">
-          <div style="height: 4px; background: #334155; border-radius: 2px; overflow: hidden;">
-            <div id="strength-bar" style="height: 100%; width: 0%; background: #ef4444; transition: all 0.3s;"></div>
-          </div>
-          <div id="strength-text" style="font-size: 12px; color: #94a3b8; margin-top: 4px;"></div>
-        </div>
-
-        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #334155;">
-          <p style="color: #94a3b8; margin-bottom: 16px; font-size: 14px;">
-            A continuación se instalarán todas las dependencias (puede tomar 2-3 minutos)
-          </p>
-        </div>
-
-        <div class="buttons">
-          <button class="btn-secondary" onclick="goToStep(2)">Atrás</button>
-          <button class="btn-primary" id="finalstep-btn" onclick="createAdminAndDeps()">
-            Crear Admin e Instalar
-          </button>
-        </div>
-
-        <div id="step4-alert" style="display: none; margin-top: 16px;"></div>
-      </div>
-
-      <!-- Paso 5: Finalización -->
-      <div class="step-hidden" id="form-5">
-        <div style="text-align: center;">
-          <div style="font-size: 64px; margin-bottom: 16px;">🎉</div>
-          <h2 style="margin-bottom: 8px;">¡Instalación Completada!</h2>
-          <p style="color: #94a3b8; margin-bottom: 24px;">
-            SportBets AI Portal está listo para usar
-          </p>
-
-          <div style="background: #064e3b; border: 1px solid #10b981; border-radius: 6px; padding: 16px; margin-bottom: 24px; text-align: left;">
-            <p style="color: #10b981; font-weight: 600; margin-bottom: 8px;">✓ URLs de Acceso:</p>
-            <p style="color: #a7f3d0; font-family: monospace; font-size: 12px; margin-bottom: 8px;" id="access-url"></p>
-            <p style="color: #a7f3d0; font-family: monospace; font-size: 12px;" id="admin-info"></p>
-          </div>
-
-          <button class="btn-primary" onclick="finalizeInstallation()">
-            Ir al Portal de Administración
-          </button>
-        </div>
-      </div>
+  <!-- Progress bar -->
+  <div class="progress-bar" id="progress-bar">
+    <div class="pb-step active" id="pb-1">
+      <div class="pb-num"><span>1</span></div>
+      <div class="pb-label">Requisitos</div>
+    </div>
+    <div class="pb-step" id="pb-2">
+      <div class="pb-num"><span>2</span></div>
+      <div class="pb-label">Configurar</div>
+    </div>
+    <div class="pb-step" id="pb-3">
+      <div class="pb-num"><span>3</span></div>
+      <div class="pb-label">Base de datos</div>
+    </div>
+    <div class="pb-step" id="pb-4">
+      <div class="pb-num"><span>4</span></div>
+      <div class="pb-label">Instalar</div>
+    </div>
+    <div class="pb-step" id="pb-5">
+      <div class="pb-num"><span>5</span></div>
+      <div class="pb-label">Listo</div>
     </div>
   </div>
 
-  <script>
-    const API = '/api';
-    let currentStep = 1;
-    let installationData = {};
+  <!-- Card -->
+  <div class="card">
 
-    // Mostrar/ocultar formularios
-    function goToStep(n) {
-      document.getElementById(`form-${currentStep}`).classList.remove('step-visible');
-      document.getElementById(`form-${currentStep}`).classList.add('step-hidden');
+    <!-- ─── Paso 1: Requisitos ─────────────────────────────── -->
+    <div class="pane active" id="pane-1">
+      <div class="step-title">Verificar Requisitos</div>
+      <div class="step-desc">
+        Introduce los datos de tu base de datos MySQL para verificar la conexión
+        y confirmar que el sistema cumple los requisitos mínimos.
+      </div>
 
-      document.getElementById(`step-${currentStep}`).classList.remove('active');
-      document.getElementById(`form-${n}`).classList.add('step-visible');
-      document.getElementById(`form-${n}`).classList.remove('step-hidden');
-      document.getElementById(`step-${n}`).classList.add('active');
+      <div class="grid2">
+        <div class="field">
+          <label>Host MySQL</label>
+          <input id="dbHost" value="localhost" placeholder="localhost">
+          <div class="hint">Normalmente <strong>localhost</strong> en cPanel</div>
+        </div>
+        <div class="field">
+          <label>Nombre de la BD</label>
+          <input id="dbName" placeholder="usuario_sportbets">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Usuario MySQL</label>
+          <input id="dbUser" placeholder="cpanel_usuario">
+        </div>
+        <div class="field">
+          <label>Contraseña MySQL</label>
+          <input type="password" id="dbPass" placeholder="••••••••">
+        </div>
+      </div>
 
-      currentStep = n;
-      window.scrollTo(0, 0);
-    }
+      <div id="alert-1"></div>
 
-    function markStepComplete(n) {
-      document.getElementById(`step-${n}`).classList.add('completed');
-    }
+      <div class="btn-row">
+        <button class="btn-primary" id="btn-1" onclick="step1()">
+          Verificar Requisitos
+        </button>
+      </div>
+    </div>
 
-    // Mostrar alertas
-    function showAlert(elementId, message, type = 'error') {
-      const el = document.getElementById(elementId);
-      el.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
-      el.style.display = 'block';
-    }
+    <!-- ─── Paso 2: Configuración ─────────────────────────── -->
+    <div class="pane" id="pane-2">
+      <div class="step-title">Configuración del Sistema</div>
+      <div class="step-desc">
+        Completa los parámetros de tu portal. Todos los secretos y contraseñas
+        se generarán automáticamente.
+      </div>
 
-    // Paso 1: Verificar requisitos
-    async function checkRequirements() {
-      const btn = document.getElementById('check-btn');
-      btn.innerHTML = '<span class="loading"></span>Verificando...';
+      <div class="grid2">
+        <div class="field">
+          <label>Dominio</label>
+          <input id="domain" placeholder="tudominio.com">
+          <div class="hint">Sin https://</div>
+        </div>
+        <div class="field">
+          <label>Email del Admin</label>
+          <input type="email" id="adminEmail" placeholder="admin@tudominio.com">
+        </div>
+      </div>
 
-      try {
-        const res = await fetch(API + '/check-requirements', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            dbHost: document.getElementById('dbHost').value,
-            dbUser: document.getElementById('dbUser').value,
-            dbPass: document.getElementById('dbPass').value,
-            dbName: document.getElementById('dbName').value
-          })
-        });
+      <div class="field">
+        <label>Proveedor de IA</label>
+        <select id="iaProvider" onchange="updateIAHelp()">
+          <option value="claude">Claude (Anthropic) — Recomendado</option>
+          <option value="openai">OpenAI (GPT-4o)</option>
+          <option value="gemini">Google Gemini</option>
+        </select>
+      </div>
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
+      <div class="field">
+        <label>API Key — IA</label>
+        <input type="password" id="iaApiKey" placeholder="sk-ant-...">
+        <div class="hint" id="ia-help">
+          Obtén en <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>
+        </div>
+      </div>
 
-        installationData.db = {
-          host: document.getElementById('dbHost').value,
-          user: document.getElementById('dbUser').value,
-          pass: document.getElementById('dbPass').value,
-          name: document.getElementById('dbName').value
-        };
+      <div class="field">
+        <label>API Key — RapidAPI (Deportes)</label>
+        <input type="password" id="sportsApiKey" placeholder="xxxxxxxxxxxx">
+        <div class="hint">
+          Regístrate en <a href="https://rapidapi.com" target="_blank">rapidapi.com</a>
+          y suscríbete a <strong>API-Sports</strong>.
+        </div>
+      </div>
 
-        showAlert('step1-alert', '✓ Requisitos verificados: ' + data.message, 'success');
-        markStepComplete(1);
-        setTimeout(() => goToStep(2), 1000);
-      } catch (err) {
-        showAlert('step1-alert', err.message, 'error');
-      } finally {
-        btn.innerHTML = 'Verificar Requisitos';
-      }
-    }
+      <hr class="sep">
+      <div class="step-desc" style="margin-bottom:16px;">Email (SMTP) — para notificaciones</div>
 
-    // Actualizar campos de IA
-    function updateIAFields() {
-      const provider = document.getElementById('iaProvider').value;
-      const helpEl = document.getElementById('ia-help');
-      const links = {
-        claude: '<a href="https://console.anthropic.com" target="_blank" style="color: #6366f1;">console.anthropic.com</a>',
-        openai: '<a href="https://platform.openai.com" target="_blank" style="color: #6366f1;">platform.openai.com</a>',
-        gemini: '<a href="https://aistudio.google.com" target="_blank" style="color: #6366f1;">aistudio.google.com</a>'
+      <div class="grid2">
+        <div class="field">
+          <label>SMTP Host</label>
+          <input id="smtpHost" value="smtp.gmail.com" placeholder="smtp.gmail.com">
+        </div>
+        <div class="field">
+          <label>Usuario SMTP</label>
+          <input type="email" id="smtpUser" placeholder="tu@gmail.com">
+        </div>
+      </div>
+      <div class="field">
+        <label>Contraseña SMTP</label>
+        <input type="password" id="smtpPass" placeholder="••••••••">
+        <div class="hint">En Gmail usa <em>Contraseña de Aplicación</em>, no la contraseña normal.</div>
+      </div>
+
+      <div id="alert-2"></div>
+
+      <div class="btn-row">
+        <button class="btn-ghost" onclick="goTo(1)">← Atrás</button>
+        <div class="spacer"></div>
+        <button class="btn-primary" id="btn-2" onclick="step2()">
+          Guardar Configuración →
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── Paso 3: Base de datos ─────────────────────────── -->
+    <div class="pane" id="pane-3">
+      <div class="step-title">Crear Base de Datos</div>
+      <div class="step-desc">
+        Se creará la base de datos y todas las tablas necesarias
+        de forma automática.
+      </div>
+
+      <div id="alert-3"></div>
+
+      <div class="btn-row">
+        <button class="btn-ghost" onclick="goTo(2)">← Atrás</button>
+        <div class="spacer"></div>
+        <button class="btn-primary" id="btn-3" onclick="step3()">
+          Crear Base de Datos →
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── Paso 4: Admin + deps ──────────────────────────── -->
+    <div class="pane" id="pane-4">
+      <div class="step-title">Crear Admin e Instalar</div>
+      <div class="step-desc">
+        Define la contraseña del administrador. Luego se instalarán
+        todas las dependencias y se compilará el frontend.
+      </div>
+
+      <div class="field">
+        <label>Contraseña del Administrador</label>
+        <input type="password" id="adminPassword" placeholder="Mínimo 12 caracteres con mayúsculas, números y símbolo"
+               oninput="checkStrength(this.value)">
+        <div class="strength-wrap" id="strength-wrap" style="display:none">
+          <div class="strength-bar-outer">
+            <div class="strength-bar-inner" id="strength-bar"></div>
+          </div>
+          <div class="strength-label" id="strength-label"></div>
+        </div>
+        <div class="hint">Guárdala en un lugar seguro — no se puede recuperar.</div>
+      </div>
+
+      <div id="alert-4"></div>
+
+      <!-- Log console — visible only during install -->
+      <div id="log-section" style="display:none; margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-weight:600; font-size:13px;">Progreso de instalación</span>
+          <span id="log-status" style="font-size:12px; color:var(--muted);">Ejecutando…</span>
+        </div>
+        <div class="log-console" id="log-out"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-ghost" id="btn-4-back" onclick="goTo(3)">← Atrás</button>
+        <div class="spacer"></div>
+        <button class="btn-primary" id="btn-4" onclick="step4()">
+          Instalar Sistema →
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── Paso 5: Listo ──────────────────────────────────── -->
+    <div class="pane" id="pane-5">
+      <div class="success-wrap">
+        <div class="success-icon">🎉</div>
+        <h2>¡Instalación Completada!</h2>
+        <p>SportBets AI Portal está listo para usar.</p>
+
+        <div class="url-box">
+          <div class="url-label">✓ Acceso al portal</div>
+          <div class="url-row">
+            <code id="url-portal"></code>
+            <button class="copy-btn" onclick="copyText('url-portal')">Copiar</button>
+          </div>
+          <div class="url-row" style="margin-top:8px;">
+            <code id="url-admin"></code>
+            <button class="copy-btn" onclick="copyText('url-admin')">Copiar</button>
+          </div>
+          <hr style="border-color:var(--border);margin:12px 0;">
+          <div style="font-size:12px; color:#6ee7b7;">
+            Email admin: <span id="admin-email-show" style="font-weight:600;"></span>
+          </div>
+        </div>
+
+        <div class="alert alert-info" style="text-align:left; font-size:12px;">
+          <strong>Siguiente paso en cPanel:</strong><br>
+          Copia el contenido de <code>htaccess.txt</code> (generado en la raíz del proyecto)
+          a tu <code>public_html/.htaccess</code> para activar el proxy.
+        </div>
+
+        <div class="btn-row" style="margin-top:16px;">
+          <button class="btn-primary green" id="btn-5" onclick="step5()">
+            Ir al Portal →
+          </button>
+        </div>
+
+        <p style="font-size:11px; color:var(--muted); margin-top:16px;">
+          El instalador se eliminará automáticamente al presionar el botón.
+        </p>
+      </div>
+    </div>
+
+  </div><!-- /card -->
+</div><!-- /shell -->
+
+<script>
+// ─── State ───────────────────────────────────────────────────
+const API   = '/api';
+let current = 1;
+const data  = {};           // collected form data across steps
+
+// ─── Navigation ──────────────────────────────────────────────
+function goTo(n) {
+  document.getElementById(`pane-${current}`).classList.remove('active');
+  document.getElementById(`pane-${n}`).classList.add('active');
+  document.getElementById(`pb-${current}`).classList.remove('active');
+
+  if (n > current) {
+    document.getElementById(`pb-${current}`).classList.add('done');
+  }
+  document.getElementById(`pb-${n}`).classList.add('active');
+  current = n;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function markDone(n) {
+  document.getElementById(`pb-${n}`).classList.remove('active');
+  document.getElementById(`pb-${n}`).classList.add('done');
+}
+
+// ─── Alert helpers ────────────────────────────────────────────
+function alert$(id, msg, type = 'error') {
+  const el = document.getElementById(`alert-${id}`);
+  el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+}
+function clearAlert(id) {
+  document.getElementById(`alert-${id}`).innerHTML = '';
+}
+
+// ─── Loading state ────────────────────────────────────────────
+function loading(btnId, yes) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.disabled = yes;
+  if (yes) {
+    btn._orig = btn.innerHTML;
+    btn.innerHTML = `<span class="spin"></span> Procesando…`;
+  } else {
+    btn.innerHTML = btn._orig || btn.innerHTML;
+  }
+}
+
+// ─── API call ─────────────────────────────────────────────────
+async function api(endpoint, body) {
+  const res  = await fetch(API + endpoint, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Error desconocido');
+  return json;
+}
+
+// ─── IA help link ─────────────────────────────────────────────
+function updateIAHelp() {
+  const links = {
+    claude:  '<a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>',
+    openai:  '<a href="https://platform.openai.com"   target="_blank">platform.openai.com</a>',
+    gemini:  '<a href="https://aistudio.google.com"   target="_blank">aistudio.google.com</a>',
+  };
+  const p = document.getElementById('iaProvider').value;
+  document.getElementById('ia-help').innerHTML =
+    `Obtén tu API Key en ${links[p] || links.claude}`;
+}
+
+// ─── Password strength ────────────────────────────────────────
+function checkStrength(pwd) {
+  const wrap  = document.getElementById('strength-wrap');
+  const bar   = document.getElementById('strength-bar');
+  const label = document.getElementById('strength-label');
+
+  let score = 0;
+  if (pwd.length >= 12) score++;
+  if (/[A-Z]/.test(pwd))           score++;
+  if (/[0-9]/.test(pwd))           score++;
+  if (/[^A-Za-z0-9]/.test(pwd))   score++;
+
+  const colors = ['#ef4444','#f59e0b','#eab308','#10b981'];
+  const labels = ['Muy débil','Regular','Buena','Fuerte ✓'];
+
+  wrap.style.display = pwd.length ? 'block' : 'none';
+  bar.style.width      = `${score * 25}%`;
+  bar.style.background = colors[score - 1] || '#374151';
+  label.textContent    = labels[score - 1] || '';
+}
+
+// ─── Step 1 — Verificar requisitos ───────────────────────────
+async function step1() {
+  clearAlert(1);
+  loading('btn-1', true);
+
+  const body = {
+    dbHost: document.getElementById('dbHost').value.trim(),
+    dbUser: document.getElementById('dbUser').value.trim(),
+    dbPass: document.getElementById('dbPass').value,
+    dbName: document.getElementById('dbName').value.trim(),
+  };
+
+  if (!body.dbUser || !body.dbName) {
+    alert$(1, 'Usuario y nombre de BD son obligatorios');
+    loading('btn-1', false);
+    return;
+  }
+
+  try {
+    const r = await api('/check-requirements', body);
+    Object.assign(data, body);
+    alert$(1, `✓ ${r.message} — Node.js ${r.nodeVersion}`, 'success');
+    markDone(1);
+    setTimeout(() => goTo(2), 800);
+  } catch (err) {
+    alert$(1, err.message);
+  } finally {
+    loading('btn-1', false);
+  }
+}
+
+// ─── Step 2 — Configuración ──────────────────────────────────
+async function step2() {
+  clearAlert(2);
+
+  const domain     = document.getElementById('domain').value.trim().replace(/^https?:\/\//,'');
+  const adminEmail = document.getElementById('adminEmail').value.trim();
+
+  if (!domain || !adminEmail) {
+    alert$(2, 'Dominio y email son obligatorios');
+    return;
+  }
+
+  loading('btn-2', true);
+
+  const body = {
+    domain, adminEmail,
+    iaProvider:   document.getElementById('iaProvider').value,
+    iaApiKey:     document.getElementById('iaApiKey').value,
+    sportsApiKey: document.getElementById('sportsApiKey').value,
+    smtpHost:     document.getElementById('smtpHost').value.trim(),
+    smtpUser:     document.getElementById('smtpUser').value.trim(),
+    smtpPass:     document.getElementById('smtpPass').value,
+    ...data,
+  };
+
+  try {
+    await api('/generate-env', body);
+    Object.assign(data, body);
+    markDone(2);
+    goTo(3);
+  } catch (err) {
+    alert$(2, err.message);
+  } finally {
+    loading('btn-2', false);
+  }
+}
+
+// ─── Step 3 — Base de datos ───────────────────────────────────
+async function step3() {
+  clearAlert(3);
+  loading('btn-3', true);
+
+  try {
+    const r = await api('/setup-database', data);
+    alert$(3, `✓ ${r.message}`, 'success');
+    markDone(3);
+    setTimeout(() => goTo(4), 700);
+  } catch (err) {
+    alert$(3, err.message);
+  } finally {
+    loading('btn-3', false);
+  }
+}
+
+// ─── Step 4 — Admin + install ────────────────────────────────
+async function step4() {
+  clearAlert(4);
+  const pwd = document.getElementById('adminPassword').value;
+
+  if (!pwd || pwd.length < 12) {
+    alert$(4, 'La contraseña debe tener mínimo 12 caracteres');
+    return;
+  }
+
+  // Lock navigation
+  document.getElementById('btn-4').disabled      = true;
+  document.getElementById('btn-4-back').disabled = true;
+  document.getElementById('btn-4').innerHTML     = `<span class="spin"></span> Instalando…`;
+
+  try {
+    // 1. Create admin
+    await api('/create-admin', { adminEmail: data.adminEmail, adminPassword: pwd });
+    alert$(4, '✓ Administrador creado. Instalando dependencias…', 'success');
+
+    // 2. Show log console & start install
+    document.getElementById('log-section').style.display = 'block';
+    const logOut  = document.getElementById('log-out');
+    const logStat = document.getElementById('log-status');
+
+    await api('/install-deps', {});
+
+    // 3. Open SSE stream
+    await new Promise((resolve, reject) => {
+      const es = new EventSource('/api/install-log');
+
+      es.onmessage = (e) => {
+        const line = JSON.parse(e.data);
+
+        if (line === '__DONE__') {
+          es.close();
+          logStat.textContent = '✓ Completado';
+          logStat.style.color = 'var(--green)';
+          resolve();
+          return;
+        }
+        if (line === '__ERROR__') {
+          es.close();
+          logStat.textContent = '✗ Error';
+          logStat.style.color = 'var(--red)';
+          reject(new Error('La instalación de dependencias falló. Revisa el log.'));
+          return;
+        }
+
+        // Classify line colour
+        const span    = document.createElement('span');
+        span.className =
+          line.startsWith('✗') || /error/i.test(line) ? 'log-err'  :
+          line.startsWith('▶')                         ? 'log-info' :
+          line.startsWith('✓')                         ? 'log-ok'   : '';
+        span.textContent = line + '\n';
+        logOut.appendChild(span);
+        logOut.scrollTop = logOut.scrollHeight;
       };
-      helpEl.innerHTML = `Obtén tu API key en ${links[provider] || links.claude}`;
-    }
 
-    // Paso 2: Generar .env
-    async function generateEnv() {
-      const domain = document.getElementById('domain').value;
-      const adminEmail = document.getElementById('adminEmail').value;
-
-      if (!domain || !adminEmail) {
-        showAlert('step2-alert', 'Completa todos los campos', 'error');
-        return;
-      }
-
-      document.getElementById('step-3').classList.add('active');
-      markStepComplete(2);
-
-      installationData.config = {
-        domain,
-        adminEmail,
-        iaProvider: document.getElementById('iaProvider').value,
-        iaApiKey: document.getElementById('iaApiKey').value,
-        sportsApiKey: document.getElementById('sportsApiKey').value,
-        smtpHost: document.getElementById('smtpHost').value,
-        smtpUser: document.getElementById('smtpUser').value,
-        smtpPass: document.getElementById('smtpPass').value,
-        ...installationData.db
+      es.onerror = () => {
+        // SSE disconnects naturally once server closes — ignore benign close
       };
-
-      try {
-        const res = await fetch(API + '/generate-env', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(installationData.config)
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-
-        goToStep(3);
-      } catch (err) {
-        showAlert('step2-alert', err.message, 'error');
-      }
-    }
-
-    // Paso 3: Crear BD
-    async function setupDatabase() {
-      const btn = document.getElementById('setupdb-btn');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="loading"></span>Creando base de datos...';
-
-      try {
-        const res = await fetch(API + '/setup-database', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(installationData.db)
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-
-        showAlert('step3-alert', '✓ Base de datos creada y tablas inicializadas', 'success');
-        markStepComplete(3);
-        setTimeout(() => goToStep(4), 1000);
-      } catch (err) {
-        showAlert('step3-alert', err.message, 'error');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'Crear Base de Datos';
-      }
-    }
-
-    // Monitorear fortaleza de contraseña
-    document.getElementById('adminPassword')?.addEventListener('input', function() {
-      const pwd = this.value;
-      let strength = 0;
-      const strengthEl = document.getElementById('password-strength');
-      const bar = document.getElementById('strength-bar');
-      const text = document.getElementById('strength-text');
-
-      if (pwd.length >= 12) strength++;
-      if (/[A-Z]/.test(pwd)) strength++;
-      if (/[0-9]/.test(pwd)) strength++;
-      if (/[!@#$%^&*]/.test(pwd)) strength++;
-
-      const colors = ['#ef4444', '#f59e0b', '#eab308', '#10b981'];
-      const texts = ['Muy débil', 'Débil', 'Regular', 'Fuerte'];
-
-      bar.style.width = (strength * 25) + '%';
-      bar.style.background = colors[strength - 1] || '#334155';
-      text.textContent = texts[strength - 1] || '';
-      strengthEl.style.display = strength > 0 ? 'block' : 'none';
     });
 
-    // Paso 4: Crear admin
-    async function createAdminAndDeps() {
-      const adminPassword = document.getElementById('adminPassword').value;
+    markDone(4);
 
-      if (!adminPassword) {
-        showAlert('step4-alert', 'Ingresa una contraseña', 'error');
-        return;
-      }
+    // Populate step 5 info
+    document.getElementById('url-portal').textContent = `https://${data.domain}`;
+    document.getElementById('url-admin').textContent  = `https://${data.domain}/admin`;
+    document.getElementById('admin-email-show').textContent = data.adminEmail;
 
-      const btn = document.getElementById('finalstep-btn');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="loading"></span>Instalando...';
+    goTo(5);
 
-      try {
-        // Crear admin
-        const adminRes = await fetch(API + '/create-admin', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            adminEmail: installationData.config.adminEmail,
-            adminPassword
-          })
-        });
+  } catch (err) {
+    alert$(4, err.message);
+    document.getElementById('btn-4').disabled      = false;
+    document.getElementById('btn-4-back').disabled = false;
+    document.getElementById('btn-4').innerHTML     = 'Reintentar →';
+  }
+}
 
-        const adminData = await adminRes.json();
-        if (!adminRes.ok) throw new Error(adminData.error);
+// ─── Step 5 — Finalizar ──────────────────────────────────────
+async function step5() {
+  const btn = document.getElementById('btn-5');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spin"></span> Finalizando…`;
 
-        showAlert('step4-alert', '✓ Usuario admin creado. Instalando dependencias...', 'success');
+  try {
+    await fetch(API + '/finalize-installation', { method: 'POST' });
+  } catch {}
 
-        // Instalar deps
-        const depsRes = await fetch(API + '/install-deps', { method: 'POST' });
-        if (!depsRes.ok) throw new Error('Error instalando dependencias');
+  markDone(5);
+  setTimeout(() => {
+    window.location.href = `https://${data.domain}`;
+  }, 3500);
+}
 
-        markStepComplete(4);
-        setTimeout(() => goToStep(5), 2000);
-      } catch (err) {
-        showAlert('step4-alert', err.message, 'error');
-        btn.disabled = false;
-        btn.innerHTML = 'Crear Admin e Instalar';
-      }
-    }
-
-    // Paso 5: Finalización
-    async function finalizeInstallation() {
-      const accessUrl = `https://${installationData.config.domain}`;
-      document.getElementById('access-url').textContent = accessUrl;
-      document.getElementById('admin-info').textContent = `Email: ${installationData.config.adminEmail}`;
-
-      await fetch(API + '/finalize-installation', { method: 'POST' });
-
-      setTimeout(() => {
-        window.location.href = accessUrl;
-      }, 3000);
-    }
-  </script>
+// ─── Copy to clipboard ────────────────────────────────────────
+async function copyText(elId) {
+  const text = document.getElementById(elId).textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = event.target;
+    btn.textContent = '¡Copiado!';
+    setTimeout(() => { btn.textContent = 'Copiar'; }, 1800);
+  } catch {}
+}
+</script>
 </body>
 </html>
