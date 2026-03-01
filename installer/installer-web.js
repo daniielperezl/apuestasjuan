@@ -325,19 +325,20 @@ app.post('/api/install-deps', (req, res) => {
       label: 'Dependencias del backend',
       cwd:   path.join(PROJECT, 'backend'),
       cmd:   'npm',
-      args:  ['install', '--production', '--no-fund', '--no-audit'],
+      args:  ['install', '--production', '--no-fund', '--no-audit', '--legacy-peer-deps'],
     },
     {
       label: 'Dependencias del frontend',
       cwd:   path.join(PROJECT, 'frontend'),
       cmd:   'npm',
-      args:  ['install', '--no-fund', '--no-audit'],
+      args:  ['install', '--no-fund', '--no-audit', '--legacy-peer-deps', '--prefer-offline'],
     },
     {
       label: 'Compilar frontend (build)',
       cwd:   path.join(PROJECT, 'frontend'),
-      cmd:   'npm',
-      args:  ['run', 'build'],
+      // Use node + direct script path to avoid PATH/shell issues on CloudLinux
+      cmd:   'node',
+      args:  ['./node_modules/.bin/react-scripts', 'build'],
     },
   ];
 
@@ -347,8 +348,15 @@ app.post('/api/install-deps', (req, res) => {
       pushLog(`\n▶ ${step.label}…`);
       const ok = await new Promise((resolve) => {
         const proc = spawn(step.cmd, step.args, {
-          cwd: step.cwd,
-          env: { ...process.env, CI: 'false', FORCE_COLOR: '0' },
+          cwd:   step.cwd,
+          shell: true,   // required on cPanel/CloudLinux to resolve PATH correctly
+          env: {
+            ...process.env,
+            CI: 'false',
+            FORCE_COLOR: '0',
+            // Ensure local node_modules/.bin is always first in PATH
+            PATH: `${path.join(step.cwd, 'node_modules', '.bin')}:${process.env.PATH}`,
+          },
         });
         proc.stdout.on('data', (d) => d.toString().split('\n').forEach(pushLog));
         proc.stderr.on('data', (d) => d.toString().split('\n').forEach(pushLog));
