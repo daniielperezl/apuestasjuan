@@ -402,7 +402,7 @@ app.post('/api/finalize-installation', (req, res) => {
 
 // ─── Iniciar servidor ────────────────────────────────────────
 
-const PORT = process.env.INSTALLER_PORT || 3001;
+const PORT = process.env.PORT || process.env.INSTALLER_PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log('\n╔═══════════════════════════════════════════╗');
   console.log(`║  SportBets AI — Instalador Web             ║`);
