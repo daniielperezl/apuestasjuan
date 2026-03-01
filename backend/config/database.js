@@ -1,3 +1,9 @@
+// Use MySQL adapter on cPanel / shared hosting
+if (process.env.DB_TYPE === 'mysql') {
+  module.exports = require('./database-mysql');
+  return; // Node wraps modules in a function, so this is valid
+}
+
 const { Pool } = require('pg');
 const winston = require('winston');
 

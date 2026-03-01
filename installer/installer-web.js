@@ -149,6 +149,7 @@ FRONTEND_URL=https://${domain}
 CORS_ORIGINS=https://${domain}
 
 # ─── Base de datos (MySQL) ─────────────────────────────────
+DB_TYPE=mysql
 DB_HOST=${dbHost}
 DB_PORT=3306
 DB_USER=${dbUser}
@@ -196,6 +197,8 @@ ADMIN_EMAIL=${adminEmail}
   // ── app.js — entry point para cPanel Node.js App ──
   const appJs = `// SportBets AI Portal — cPanel entry point
 require('dotenv').config({ path: __dirname + '/.env' });
+// Use MySQL on cPanel shared hosting
+process.env.DB_TYPE = process.env.DB_TYPE || 'mysql';
 require('./backend/server.js');
 `;
   fs.writeFileSync(path.join(PROJECT, 'app.js'), appJs);
