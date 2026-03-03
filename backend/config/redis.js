@@ -7,56 +7,95 @@ const logger = winston.createLogger({
   transports: [new winston.transports.Console()]
 });
 
+// Redis is optional — disabled on cPanel shared hosting by default
+const isDisabled = () =>
+  process.env.REDIS_DISABLED === 'true' || !process.env.REDIS_HOST;
+
 let client = null;
+let connectFailed = false;  // avoid repeated reconnect attempts after failure
 
 const getRedisClient = async () => {
+  if (isDisabled())   return null;
+  if (connectFailed)  return null;
   if (client && client.isOpen) return client;
 
-  client = createClient({
-    socket: {
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT) || 6379
-    },
-    password: process.env.REDIS_PASSWORD || undefined
-  });
+  try {
+    client = createClient({
+      socket: {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT) || 6379,
+        connectTimeout: 3000,
+        reconnectStrategy: false,
+      },
+      password: process.env.REDIS_PASSWORD || undefined,
+    });
 
-  client.on('error', (err) => logger.error('Redis error:', err));
-  client.on('connect', () => logger.info('Redis connected'));
+    client.on('error', (err) => {
+      logger.warn('Redis error (cache disabled):', err.message);
+      connectFailed = true;
+    });
 
-  await client.connect();
-  return client;
+    await client.connect();
+    logger.info('Redis connected');
+    connectFailed = false;
+    return client;
+  } catch (err) {
+    logger.warn('Redis unavailable — running without cache:', err.message);
+    connectFailed = true;
+    return null;
+  }
 };
 
+// Safe wrappers — all silently no-op when Redis is unavailable
+
 const setCache = async (key, value, ttlSeconds = 3600) => {
-  const redis = await getRedisClient();
-  await redis.setEx(key, ttlSeconds, JSON.stringify(value));
+  if (isDisabled()) return;
+  try {
+    const redis = await getRedisClient();
+    if (!redis) return;
+    await redis.setEx(key, ttlSeconds, JSON.stringify(value));
+  } catch (err) {
+    logger.warn('Redis setCache failed:', err.message);
+  }
 };
 
 const getCache = async (key) => {
-  const redis = await getRedisClient();
-  const data = await redis.get(key);
-  return data ? JSON.parse(data) : null;
+  if (isDisabled()) return null;
+  try {
+    const redis = await getRedisClient();
+    if (!redis) return null;
+    const data = await redis.get(key);
+    return data ? JSON.parse(data) : null;
+  } catch (err) {
+    logger.warn('Redis getCache failed:', err.message);
+    return null;
+  }
 };
 
 const deleteCache = async (key) => {
-  const redis = await getRedisClient();
-  await redis.del(key);
+  if (isDisabled()) return;
+  try {
+    const redis = await getRedisClient();
+    if (!redis) return;
+    await redis.del(key);
+  } catch (err) {
+    logger.warn('Redis deleteCache failed:', err.message);
+  }
 };
 
 const setSession = async (sessionId, data, ttlSeconds = 604800) => {
-  const redis = await getRedisClient();
-  await redis.setEx(`session:${sessionId}`, ttlSeconds, JSON.stringify(data));
+  await setCache(`session:${sessionId}`, data, ttlSeconds);
 };
 
 const getSession = async (sessionId) => {
-  const redis = await getRedisClient();
-  const data = await redis.get(`session:${sessionId}`);
-  return data ? JSON.parse(data) : null;
+  return getCache(`session:${sessionId}`);
 };
 
 const deleteSession = async (sessionId) => {
-  const redis = await getRedisClient();
-  await redis.del(`session:${sessionId}`);
+  await deleteCache(`session:${sessionId}`);
 };
 
-module.exports = { getRedisClient, setCache, getCache, deleteCache, setSession, getSession, deleteSession };
+module.exports = {
+  getRedisClient, setCache, getCache, deleteCache,
+  setSession, getSession, deleteSession,
+};

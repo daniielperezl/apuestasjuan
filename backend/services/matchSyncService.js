@@ -4,6 +4,7 @@ const {
   getAllTodayMatches,
   getAllLiveMatches,
   getMatchDetail,
+  normalizeMatch,
   getSportFromId,
   getExternalId,
 } = require('./sportsApiService');
@@ -186,7 +187,11 @@ const updateLiveMatches = async () => {
         try {
           const sport = row.deporte || getSportFromId(row.id);
           const extId = row.api_external_id || getExternalId(row.id);
-          const detail = await getMatchDetail(sport, extId);
+          const raw = await getMatchDetail(sport, extId);
+
+          // getMatchDetail returns { response: [...] } — normalize before persisting
+          const detailRaw = raw?.response?.[0];
+          const detail = detailRaw ? normalizeMatch(detailRaw, sport) : null;
 
           if (detail) {
             const { changed } = await persistMatch(detail);
@@ -195,12 +200,12 @@ const updateLiveMatches = async () => {
               emitMatchUpdate(detail);
             }
           } else {
-            // Fallback: just mark as FT
+            // Fallback: mark as FINISHED (valid schema value)
             await query(
-              "UPDATE encuentros SET estado = 'FT', updated_at = NOW() WHERE id = ?",
+              "UPDATE encuentros SET estado = 'FINISHED', updated_at = NOW() WHERE id = ?",
               [row.id]
             );
-            if (_io) _io.emit('match_updated', { id: row.id, estado: 'FT' });
+            if (_io) _io.emit('match_updated', { id: row.id, estado: 'FINISHED' });
           }
         } catch (err) {
           logger.error(`Failed to finalise match ${row.id}:`, err.message);

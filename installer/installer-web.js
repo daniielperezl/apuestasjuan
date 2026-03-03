@@ -21,6 +21,14 @@ const PROJECT    = path.resolve(__dirname, '..');
 const STATE_FILE = path.join(PROJECT, '.installer-state.json');
 
 app.use(express.json());
+
+// ── Serve installer UI at /install (and redirect / → /install) ──
+app.get('/', (req, res) => res.redirect('/install'));
+app.get('/install', (req, res) =>
+  res.sendFile(path.join(__dirname, 'public', 'index.html'))
+);
+app.use('/install', express.static(path.join(__dirname, 'public')));
+// Also serve static assets from root path (for any direct CSS/JS references)
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -194,14 +202,7 @@ ADMIN_EMAIL=${adminEmail}
 
   fs.writeFileSync(path.join(PROJECT, '.env'), envContent);
 
-  // ── app.js — entry point para cPanel Node.js App ──
-  const appJs = `// SportBets AI Portal — cPanel entry point
-require('dotenv').config({ path: __dirname + '/.env' });
-// Use MySQL on cPanel shared hosting
-process.env.DB_TYPE = process.env.DB_TYPE || 'mysql';
-require('./backend/server.js');
-`;
-  fs.writeFileSync(path.join(PROJECT, 'app.js'), appJs);
+  // app.js is already the correct unified entry point (no overwrite needed)
 
   // ── htaccess.txt — guía para cPanel proxy ──
   const htaccess = `# Coloca este contenido en tu public_html/.htaccess
@@ -384,31 +385,23 @@ app.post('/api/install-deps', (req, res) => {
 
 app.get('/api/installation-status', (req, res) => res.json(loadState()));
 
-// ─── Finalizar (auto-eliminación del instalador) ─────────────
+// ─── Finalizar instalación ───────────────────────────────────
 
 app.post('/api/finalize-installation', (req, res) => {
-  res.json({ success: true, message: 'Instalador eliminado' });
+  res.json({ success: true, message: 'Instalación completada. El servidor se reiniciará automáticamente.' });
 
+  // Clean state file and restart the process so app.js detects installation
   setTimeout(() => {
-    const targets = [
-      __filename,                            // installer-web.js
-      path.join(__dirname, 'public'),        // installer UI
-      path.join(__dirname, 'package.json'),  // installer package.json
-      path.join(__dirname, 'node_modules'),  // installer deps
-      STATE_FILE,                            // state file
-    ];
-    for (const t of targets) {
-      try {
-        if (!fs.existsSync(t)) continue;
-        const stat = fs.statSync(t);
-        if (stat.isDirectory()) fs.rmSync(t, { recursive: true, force: true });
-        else fs.unlinkSync(t);
-      } catch (e) {
-        console.error(`Error eliminando ${t}:`, e.message);
-      }
+    try {
+      if (fs.existsSync(STATE_FILE)) fs.unlinkSync(STATE_FILE);
+    } catch (e) {
+      console.error('Error eliminando state file:', e.message);
     }
-    console.log('Instalador eliminado correctamente.');
-  }, 3000);
+    console.log('✅ Instalación completada — reiniciando proceso...');
+    // process.exit(0) causes cPanel Node.js Selector to restart the app.
+    // On restart, app.js detects .env is present and starts the backend.
+    process.exit(0);
+  }, 2000);
 });
 
 // ─── Iniciar servidor ────────────────────────────────────────
